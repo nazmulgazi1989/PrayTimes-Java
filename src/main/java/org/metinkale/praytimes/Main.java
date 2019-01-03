@@ -1,30 +1,29 @@
 package org.metinkale.praytimes;
 
-import java.util.Arrays;
-
 /**
  * Created by metin on 11.10.2017.
  */
 
 public class Main {
-
+    
     public static void main(String args[]) {
         PrayTimes pt = new PrayTimes();
-        pt.setDate(2017, 6, 11);
-        pt.setCoordinates(52, 10, 0);
+        pt.setDate(2019, 1, 1);
+        pt.setCoordinates(52.24702453613281,10.506549835205078,72);
         pt.setMethod(Method.MWL);
-
-        pt.setHighLatsAdjustment(Constants.HIGHLAT_NONE);
-        System.out.println("None:\t" + pt.getTime(Constants.TIMES_FAJR) + " " + pt.getTime(Constants.TIMES_ISHA));
-
-        pt.setHighLatsAdjustment(Constants.HIGHLAT_ANGLEBASED);
-        System.out.println("Angle:\t" + pt.getTime(Constants.TIMES_FAJR) + " " + pt.getTime(Constants.TIMES_ISHA));
-
-        pt.setHighLatsAdjustment(Constants.HIGHLAT_ONESEVENTH);
-        System.out.println("1/7:\t" + pt.getTime(Constants.TIMES_FAJR) + " " + pt.getTime(Constants.TIMES_ISHA));
-
-        pt.setHighLatsAdjustment(Constants.HIGHLAT_NIGHTMIDDLE);
-        System.out.println("Mid:\t" + pt.getTime(Constants.TIMES_FAJR) + " " + pt.getTime(Constants.TIMES_ISHA));
-
+        
+        pt.setHighLatsAdjustment(PrayTimes.HIGHLAT_NONE);
+        System.out.println("Imsak:" + pt.getTime(PrayTimes.TIMES_IMSAK));
+        System.out.println("Fajr:" + pt.getTime(PrayTimes.TIMES_FAJR));
+        System.out.println("Sunrise:" + pt.getTime(PrayTimes.TIMES_SUNRISE));
+        System.out.println("Dhuhr:" + pt.getTime(PrayTimes.TIMES_DHUHR));
+        System.out.println("Asr1:" + pt.getTime(PrayTimes.TIMES_ASR_SHAFII));
+        System.out.println("Asr2:" + pt.getTime(PrayTimes.TIMES_ASR_HANAFI));
+        System.out.println("Sunset:" + pt.getTime(PrayTimes.TIMES_SUNSET));
+        System.out.println("Maghrib:" + pt.getTime(PrayTimes.TIMES_MAGHRIB));
+        System.out.println("Ishaa:" + pt.getTime(PrayTimes.TIMES_ISHA));
+        System.out.println("Midnight:" + pt.getTime(PrayTimes.TIMES_MIDNIGHT));
+        
+        
     }
 }

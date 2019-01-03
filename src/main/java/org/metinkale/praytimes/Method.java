@@ -32,38 +32,38 @@ public enum Method {
     /**
      * Muslim World League
      */
-    MWL(18, 0, true, 17, false, Constants.MIDNIGHT_STANDARD),
+    MWL(18, 0, true, 17, false, PrayTimes.MIDNIGHT_STANDARD),
     /**
      * Islamic Society of North America (ISNA)
      */
-    ISNA(15, 0, true, 15, false, Constants.MIDNIGHT_STANDARD),
+    ISNA(15, 0, true, 15, false, PrayTimes.MIDNIGHT_STANDARD),
     /**
      * Egyptian General Authority of Survey
      */
-    Egypt(19.5, 0, true, 17.5, false, Constants.MIDNIGHT_STANDARD),
+    Egypt(19.5, 0, true, 17.5, false, PrayTimes.MIDNIGHT_STANDARD),
     /**
      * Umm Al-Qura University, Makkah
      */
-    Makkah(18.5, 0, true, 90, true, Constants.MIDNIGHT_STANDARD),
+    Makkah(18.5, 0, true, 90, true, PrayTimes.MIDNIGHT_STANDARD),
     /**
      * University of Islamic Sciences, Karachi
      */
-    Karachi(18, 0, true, 18, false, Constants.MIDNIGHT_STANDARD),
+    Karachi(18, 0, true, 18, false, PrayTimes.MIDNIGHT_STANDARD),
     /**
      * Institute of Geophysics, University of Tehran
      */
-    Tehran(17.7, 4.5, false, 14, false, Constants.MIDNIGHT_JAFARI),
+    Tehran(17.7, 4.5, false, 14, false, PrayTimes.MIDNIGHT_JAFARI),
     /**
      * Shia Ithna-Ashari, Leva Institute, Qum
      */
-    Jafari(16, 4, false, 14, false, Constants.MIDNIGHT_JAFARI);
-
-
+    Jafari(16, 4, false, 14, false, PrayTimes.MIDNIGHT_JAFARI);
+    
+    
     final boolean maghribMin, ishaMin;//if true double values are in minutes, otherwhise in degrees
     final double fajr, isha, maghrib;
     final int midnight;
-
-
+    
+    
     Method(double fajr, double maghrib, boolean maghribMin, double isha, boolean ishaMin, int midnight) {
         this.fajr = fajr;
         this.maghrib = maghrib;

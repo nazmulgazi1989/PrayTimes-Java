@@ -27,7 +27,7 @@ package org.metinkale.praytimes;
  * Degree-Based Math Class
  */
 @SuppressWarnings("WeakerAccess")
-public class DMath {
+class DMath {
     public static double dtr(double d) {
         return (d * Math.PI) / 180.0;
     }
