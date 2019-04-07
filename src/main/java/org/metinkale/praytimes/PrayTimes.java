@@ -24,6 +24,7 @@ PLEASE DO NOT REMOVE THIS COPYRIGHT BLOCK.
 package org.metinkale.praytimes;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.TimeZone;
 
@@ -31,206 +32,30 @@ import java.util.TimeZone;
 @SuppressWarnings({"WeakerAccess", "unused"})
 public class PrayTimes implements Serializable {
     // constants are at the bottom
-    
-    
+
+
     private double lat, lng, elv;
-    
-    
-    //if true double values are in minutes, otherwhise in degrees
-    private boolean imsakMin = true;
-    private boolean maghribMin = false;
-    private boolean ishaMin = false;
-    //dhuhr is always in min, fajr is always in degrees
-    
-    private double imsak;
-    private double fajr;
-    private double dhuhr;
-    private double maghrib;
-    private double isha;
-    private int highLats;
-    private int midnight;
+    private HighLatsAdjustment highLats;
+
+    private Midnight midnight;
     private TimeZone timeZone = TimeZone.getDefault();
-    private int asrJuristic;
-    
-    
-    private double[] tune = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    
-    
+
+
+    private int[] minutes = new int[Times.values().length];
+    private double[] angles = new double[Times.values().length];
+
     private transient double jdate;
     private transient int year;
     private transient int month;
     private transient int day;
     private transient long timestamp;
-    private transient String[] stringTimes;
-    private transient double[] times;
-    
+    private transient double times[];
+    private transient String strTimes[];
+
     public PrayTimes() {
         setMethod(Method.MWL);
     }
-    
-    
-    /**
-     * set coordinates
-     *
-     * @param lat Latitude
-     * @param lng Longitute
-     * @param elv Elevation
-     */
-    public void setCoordinates(double lat, double lng, double elv) {
-        this.lat = lat;
-        this.lng = lng;
-        this.elv = elv;
-        clearTimes();
-    }
-    
-    /**
-     * clears cached times
-     */
-    private void clearTimes() {
-        times = null;
-        stringTimes = null;
-    }
-    
-    
-    /**
-     * set date
-     *
-     * @param year  Year (e.g. 2017)
-     * @param month Month (1-12)
-     * @param day   Date/Day of Month
-     */
-    public void setDate(int year, int month, int day) {
-        if (year == this.year && this.month == month && this.day == this.month)
-            return;
-        this.year = year;
-        this.month = month;
-        this.day = day;
-        Calendar cal = Calendar.getInstance(timeZone);
-        cal.set(this.year, this.month - 1, this.day);
-        timestamp = cal.getTimeInMillis();
-        clearTimes();
-    }
-    
-    /**
-     * return prayer time for a given date and time
-     *
-     * @param time TIME_ from Constants
-     * @return array of Times
-     */
-    public String getTime(int time) {
-        return getTimes()[time];
-    }
-    
-    /**
-     * return prayer times for a given date
-     *
-     * @return array of Times
-     */
-    private String[] getTimes() {
-        if (stringTimes != null)
-            return stringTimes;
-        
-        double[] doubles = getTimesAsDouble();
-        
-        //convert to HH:mm
-        stringTimes = new String[doubles.length];
-        for (int i = 0; i < stringTimes.length; i++) {
-            while (doubles[i] > 24) {
-                doubles[i] -= 24;
-            }
-            while (doubles[i] < 0) {
-                doubles[i] += 24;
-            }
-            stringTimes[i] = toString(doubles[i]);
-        }
-        return stringTimes;
-    }
-    
-    /**
-     * convert double time to HH:MM
-     *
-     * @param time time in double
-     * @return HH:MM
-     */
-    private String toString(double time) {
-        return az((int) Math.floor(time)) + ":" + az((int) (Math.round(time * 60)) % 60);
-    }
-    
-    /**
-     * return a two digit String of number
-     *
-     * @param i number
-     * @return two digit number
-     */
-    private String az(int i) {
-        return i >= 10 ? "" + i : "0" + i;
-    }
-    
-    
-    /**
-     * return prayer times for a given date as double values
-     *
-     * @return array of Times
-     */
-    private double[] getTimesAsDouble() {
-        if (times != null)
-            return times;
-        jdate = julian(year, month, day) - lng / (15.0 * 24.0);
-        
-        computeTimes();
-        tuneTimes();
-        return times;
-    }
-    
-    /**
-     * Calculates the qibla time, if you turn yourself to the sun at that time, you are turned to qibla
-     * Note: does not exists everywhere
-     *
-     * @return Qibla Time
-     */
-    public QiblaTime getQiblaTime() {
-        getTimes();
-        Calendar cal = Calendar.getInstance(timeZone);
-        //noinspection MagicConstant
-        cal.set(year, month - 1, day, 12, 0, 0);
-        long[] qibla = new long[4];
-        qibla[0] = QiblaTimeCalculator.findQiblaTime(cal.getTimeInMillis(), lat, lng, 0);
-        qibla[1] = QiblaTimeCalculator.findQiblaTime(cal.getTimeInMillis(), lat, lng, Math.PI / 2);
-        qibla[2] = QiblaTimeCalculator.findQiblaTime(cal.getTimeInMillis(), lat, lng, -Math.PI / 2);
-        qibla[3] = QiblaTimeCalculator.findQiblaTime(cal.getTimeInMillis(), lat, lng, Math.PI);
-        double[] qiblaD = new double[4];
-        String[] qiblaS = new String[4];
-        for (int i = 0; i < 4; i++) {
-            cal.setTimeInMillis(qibla[i]);
-            qiblaD[i] = cal.get(Calendar.HOUR_OF_DAY) + cal.get(Calendar.MINUTE) / 60d + cal.get(Calendar.SECOND) / 3600d;
-            if (qiblaD[i] < times[TIMES_SUNRISE] || qiblaD[i] > times[TIMES_SUNSET]) {
-                qiblaD[i] = 0;
-                qiblaS[i] = null;
-            } else {
-                qiblaS[i] = toString(qiblaD[i]);
-            }
-            
-            
-        }
-        QiblaTime qt = new QiblaTime();
-        qt.front = qiblaS[0];
-        qt.right = qiblaS[1];
-        qt.left = qiblaS[2];
-        qt.back = qiblaS[3];
-        
-        return qt;
-    }
-    
-    /**
-     * Tune times according to user settings
-     */
-    private void tuneTimes() {
-        for (int i = 0; i < times.length; i++) {
-            times[i] += tune[i];
-        }
-    }
-    
-    
+
     /**
      * convert Gregorian date to Julian day
      * Ref: Astronomical Algorithms by Jean Meeus
@@ -247,73 +72,165 @@ public class PrayTimes implements Serializable {
         }
         double a = Math.floor(year / 100.0);
         double b = (2 - a + Math.floor(a / 4.0));
-        
+
         return (Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day + b - 1524.5);
     }
-    
-    /**
-     * compute prayer times
-     */
-    private void computeTimes() {
-        // default times
-        times = new double[]{5, 5, 6, 12, 12, 13, 13, 13, 18, 18, 18, 0};
-        
-        computePrayerTimes();
-        
-        adjustTimes();
-        
-        // add midnight time
-        times[TIMES_MIDNIGHT] = (midnight == MIDNIGHT_JAFARI) ? times[TIMES_SUNSET] + this.timeDiff(times[TIMES_SUNSET], times[TIMES_FAJR]) / 2.0 :
-                times[TIMES_SUNSET] + this.timeDiff(times[TIMES_SUNSET], times[TIMES_SUNRISE]) / 2.0;
-        
+
+    private void clearTimes() {
+        times = null;
+        strTimes = null;
     }
-    
+
     /**
-     * compute the difference between two times
+     * set coordinates
      *
-     * @param time1 Time 1
-     * @param time2 Time 2
-     * @return timediff
+     * @param lat Latitude
+     * @param lng Longitute
+     * @param elv Elevation
      */
-    private double timeDiff(double time1, double time2) {
-        return DMath.fixHour(time2 - time1);
+    public void setCoordinates(double lat, double lng, double elv) {
+        this.lat = lat;
+        this.lng = lng;
+        this.elv = elv;
+        clearTimes();
     }
-    
+
+
     /**
-     * adjust times
+     * set date
+     *
+     * @param year  Year (e.g. 2017)
+     * @param month Month (1-12)
+     * @param day   Date/Day of Month
      */
-    private void adjustTimes() {
+    public void setDate(int year, int month, int day) {
+        if (this.year == year && this.month == month && this.day == day)
+            return;
+        this.year = year;
+        this.month = month;
+        this.day = day;
+
+        clearTimes();
+    }
+
+    /**
+     * return prayer time for a given date and time
+     *
+     * @param t time from Constants
+     * @return array of Times
+     */
+    public String getTime(Times t) {
+        calculate();
+        return strTimes[t.ordinal()];
+    }
+
+
+    /**
+     * calculate prayer times for a given date
+     */
+    private void calculate() {
+        if (times != null && strTimes != null)
+            return;
+
+        Calendar cal = Calendar.getInstance(timeZone);
+        cal.set(year, month - 1, day);
+        timestamp = cal.getTimeInMillis();
+        jdate = julian(year, month, day) - lng / (15.0 * 24.0);
+
+
+        // simple guess
+        times = new double[]{5, 5, 6, 12, 12, 13, 13, 18, 18, 18, 0};
+
+        // convert to day portions
+        for (int i = 0; i < times.length; i++) {
+            times[i] = times[i] / 24.0;
+        }
+
+        // first all angle based calculations are done
+
+        //Imsak: if angle is 0, use sunrise, given angle otherwhise (if angle is 0, calculation is probably minute based)
+        times[Times.Imsak.ordinal()] =
+                sunAngleTime(angles[Times.Imsak.ordinal()] == 0 ? riseSetAngle() : angles[Times.Imsak.ordinal()], times[Times.Imsak.ordinal()], true);
+        //Fajr: if angle is 0, use sunrise, angle otherwhise (if angle is 0, calculation is probably minute based)
+        times[Times.Fajr.ordinal()] =
+                sunAngleTime(angles[Times.Fajr.ordinal()] == 0 ? riseSetAngle() : angles[Times.Fajr.ordinal()], times[Times.Fajr.ordinal()], true);
+        // Sunrise: fix calculation
+        times[Times.Sunrise.ordinal()] = sunAngleTime(riseSetAngle(), times[Times.Sunrise.ordinal()], true);
+        // Zawal: fix calculation
+        times[Times.Zawal.ordinal()] = midDay(times[Times.Zawal.ordinal()]);
+        // Dhuhr: fix calculation
+        times[Times.Dhuhr.ordinal()] = midDay(times[Times.Dhuhr.ordinal()]);
+        // Asr Shafi: fix calculation, shadow factor 1
+        times[Times.AsrShafi.ordinal()] = asrTime(1, times[Times.AsrShafi.ordinal()]);
+        // Asr Shafi: fix calculation, shadow factor 2
+        times[Times.AsrHanafi.ordinal()] = asrTime(2, times[Times.AsrHanafi.ordinal()]);
+        // Sunset: fix calculation
+        times[Times.Sunset.ordinal()] = sunAngleTime(riseSetAngle(), times[Times.Sunset.ordinal()], false);
+        // Maghrib: if angle is 0, use sunset, given angle otherwhise
+        times[Times.Maghrib.ordinal()] =
+                sunAngleTime(angles[Times.Maghrib.ordinal()] == 0 ? riseSetAngle() : angles[Times.Maghrib.ordinal()], times[Times.Maghrib.ordinal()],
+                        false);
+        // Ishaa: if angle is 0, use sunset, given angle otherwhise (if angle is 0, calculation is probably minute based)
+        times[Times.Ishaa.ordinal()] =
+                sunAngleTime(angles[Times.Ishaa.ordinal()] == 0 ? riseSetAngle() : angles[Times.Ishaa.ordinal()], times[Times.Ishaa.ordinal()],
+                        false);
+        // midnight will be calculated later
+        // times[Times.Midnight.ordinal()] = 0;
+
+
+        if (highLats != HighLatsAdjustment.None) {
+            double nightTime = Utils.timeDiff(times[Times.Sunset.ordinal()], times[Times.Sunrise.ordinal()]);
+
+            times[Times.Imsak.ordinal()] =
+                    adjustHLTime(times[Times.Imsak.ordinal()], times[Times.Sunrise.ordinal()], angles[Times.Imsak.ordinal()], nightTime, true);
+            times[Times.Fajr.ordinal()] =
+                    adjustHLTime(times[Times.Fajr.ordinal()], times[Times.Sunrise.ordinal()], angles[Times.Fajr.ordinal()], nightTime, true);
+            times[Times.Ishaa.ordinal()] =
+                    adjustHLTime(times[Times.Ishaa.ordinal()], times[Times.Sunset.ordinal()], angles[Times.Ishaa.ordinal()], nightTime, false);
+            times[Times.Maghrib.ordinal()] =
+                    adjustHLTime(times[Times.Maghrib.ordinal()], times[Times.Sunset.ordinal()], angles[Times.Maghrib.ordinal()], nightTime, false);
+        }
+
+
+        // add midnight time
+        if (midnight == Midnight.Standard) {
+            times[Times.Midnight.ordinal()] =
+                    times[Times.Sunset.ordinal()] + Utils.timeDiff(times[Times.Sunset.ordinal()], times[Times.Sunrise.ordinal()]) / 2.0;
+        } else if (midnight == Midnight.Jafari) {
+            times[Times.Midnight.ordinal()] =
+                    times[Times.Sunset.ordinal()] + Utils.timeDiff(times[Times.Sunset.ordinal()], times[Times.Fajr.ordinal()]) / 2.0;
+        }
+
+
+        //  add minute offset and adjust timezone
         double offset = getTimeZoneOffset();
         for (int i = 0; i < times.length; i++) {
+            times[i] += minutes[i] / 60.0;
             times[i] += offset - lng / 15.0;
+
+            while (times[i] > 24) {
+                times[i] -= 24;
+            }
+            while (times[i] < 0) {
+                times[i] += 24;
+            }
         }
-        
-        if (highLats != HIGHLAT_NONE)
-            adjustHighLats();
-        
-        if (imsakMin)
-            times[TIMES_IMSAK] = times[TIMES_FAJR] - (imsak) / 60.0;
-        if (maghribMin)
-            times[TIMES_MAGHRIB] = times[TIMES_SUNSET] + (maghrib) / 60.0;
-        if (ishaMin)
-            times[TIMES_ISHA] = times[TIMES_MAGHRIB] + (isha) / 60.0;
-        times[TIMES_DHUHR] = times[TIMES_ZAWAL] + (dhuhr) / 60.0;
+
+
+        // convert to string
+        strTimes = new String[times.length];
+        for (int i = 0; i < times.length; i++) {
+            strTimes[i] = Utils.toString(times[i]);
+        }
     }
-    
-    /**
-     * adjust times for locations in higher latitudes
-     */
-    private void adjustHighLats() {
-        double nightTime = this.timeDiff(times[TIMES_SUNSET], times[TIMES_SUNRISE]);
-        
-        times[TIMES_IMSAK] = this.adjustHLTime(times[TIMES_IMSAK], times[TIMES_SUNRISE], (imsak), nightTime, true);
-        times[TIMES_FAJR] = this.adjustHLTime(times[TIMES_FAJR], times[TIMES_SUNRISE], (fajr), nightTime, true);
-        times[TIMES_ISHA] = this.adjustHLTime(times[TIMES_ISHA], times[TIMES_SUNSET], (isha), nightTime, false);
-        times[TIMES_MAGHRIB] = this.adjustHLTime(times[TIMES_MAGHRIB], times[TIMES_SUNSET], (maghrib), nightTime, false);
-    }
-    
+
     /**
      * adjust a time for higher latitudes
+     * <p>
+     * how it works:
+     * dependend on the calculation method there is a maximum night portion, that might be used from time to base
+     * <p>
+     * (e.g.) if NightMiddle is taken and the calculated fajr takes more than the half night, it will be fixed to midnight
      *
      * @param time  time
      * @param base  base
@@ -323,51 +240,83 @@ public class PrayTimes implements Serializable {
      * @return adjusted time
      */
     private double adjustHLTime(double time, double base, double angle, double night, boolean ccw) {
-        double portion = this.nightPortion(angle, night);
-        double timeDiff = (ccw) ? this.timeDiff(time, base) : this.timeDiff(base, time);
-        if (Double.isNaN(time) || timeDiff > portion)
-            time = base + (ccw ? -portion : portion);
+        double maxPortion = maxNightPortion(angle);
+        double maxDuration = maxPortion * night;
+
+        double timeDiff = (ccw) ? Utils.timeDiff(time, base) : Utils.timeDiff(base, time);
+        if (Double.isNaN(time) || timeDiff > maxPortion)
+            time = base + (ccw ? -maxPortion : maxPortion);
         return time;
     }
-    
+
     /**
-     * the night portion used for adjusting times in higher latitudes
+     * the maximum night portion used for adjusting times in higher latitudes
      *
      * @param angle angle
-     * @param night night time
      * @return night portion
      */
-    private double nightPortion(double angle, double night) {
-        double method = highLats;
-        double portion = 1.0 / 2.0;// MidNight
-        if (method == HIGHLAT_ANGLEBASED)
-            portion = 1.0 / 60.0 * angle;
-        if (method == HIGHLAT_ONESEVENTH)
-            portion = 1.0 / 7.0;
-        return portion * night;
-    }
-    
-    /**
-     * compute prayer times at given julian date
-     */
-    private void computePrayerTimes() {
-        // convert hours to day portions
-        for (int i = 0; i < times.length; i++) {
-            times[i] = times[i] / 24.0;
+    private double maxNightPortion(double angle) {
+        double portion = 0;
+        switch (highLats) {
+            case None:
+                portion = 1;
+                break;
+            case AngleBased:
+                portion = 1.0 / 60.0 * angle;
+                break;
+            case OneSeventh:
+                portion = 1.0 / 7.0;
+                break;
+            case NightMiddle:
+                portion = 1.0 / 2.0;
+                break;
         }
-        
-        times[TIMES_IMSAK] = this.sunAngleTime((imsak), times[TIMES_IMSAK], true);
-        times[TIMES_FAJR] = this.sunAngleTime((fajr), times[TIMES_FAJR], true);
-        times[TIMES_SUNRISE] = this.sunAngleTime(this.riseSetAngle(), times[TIMES_SUNRISE], true);
-        times[TIMES_ZAWAL] = this.midDay(times[TIMES_ZAWAL]);
-        times[TIMES_ASR_SHAFII] = this.asrTime(JURISTIC_STANDARD, times[TIMES_ASR_SHAFII]);
-        times[TIMES_ASR_HANAFI] = this.asrTime(JURISTIC_HANAFI, times[TIMES_ASR_HANAFI]);
-        times[TIMES_ASR] = asrJuristic != JURISTIC_STANDARD ? times[TIMES_ASR_HANAFI] : times[TIMES_ASR_SHAFII];
-        times[TIMES_SUNSET] = this.sunAngleTime(this.riseSetAngle(), times[TIMES_SUNSET], false);
-        times[TIMES_MAGHRIB] = this.sunAngleTime((maghrib), times[TIMES_MAGHRIB], false);
-        times[TIMES_ISHA] = this.sunAngleTime((isha), times[TIMES_MAGHRIB], false);
+        return portion;
     }
-    
+
+    /**
+     * Calculates the qibla time, if you turn yourself to the sun at that time, you are turned to qibla
+     * Note: does not exists everywhere
+     *
+     * @return Qibla Time
+     */
+    public QiblaTime getQiblaTime() {
+        calculate();
+        Calendar cal = Calendar.getInstance(timeZone);
+        //noinspection MagicConstant
+        cal.set(year, month - 1, day, 12, 0, 0);
+        long[] qibla = new long[4];
+        qibla[0] = QiblaTimeCalculator.findQiblaTime(cal.getTimeInMillis(), lat, lng, 0);
+        qibla[1] = QiblaTimeCalculator.findQiblaTime(cal.getTimeInMillis(), lat, lng, Math.PI / 2);
+        qibla[2] = QiblaTimeCalculator.findQiblaTime(cal.getTimeInMillis(), lat, lng, -Math.PI / 2);
+        qibla[3] = QiblaTimeCalculator.findQiblaTime(cal.getTimeInMillis(), lat, lng, Math.PI);
+        double[] qiblaD = new double[4];
+        String[] qiblaS = new String[4];
+        double sunrise = times[Times.Sunrise.ordinal()];
+        double sunset = times[Times.Sunset.ordinal()];
+
+        for (int i = 0; i < 4; i++) {
+            cal.setTimeInMillis(qibla[i]);
+            qiblaD[i] = cal.get(Calendar.HOUR_OF_DAY) + cal.get(Calendar.MINUTE) / 60d + cal.get(Calendar.SECOND) / 3600d;
+            if (qiblaD[i] < sunrise || qiblaD[i] > sunset) {
+                qiblaD[i] = 0;
+                qiblaS[i] = null;
+            } else {
+                qiblaS[i] = Utils.toString(qiblaD[i]);
+            }
+
+
+        }
+        QiblaTime qt = new QiblaTime();
+        qt.front = qiblaS[0];
+        qt.right = qiblaS[1];
+        qt.left = qiblaS[2];
+        qt.back = qiblaS[3];
+
+        return qt;
+    }
+
+
     /**
      * compute asr time
      *
@@ -380,8 +329,8 @@ public class PrayTimes implements Serializable {
         double angle = -DMath.arccot(factor + DMath.tan(Math.abs(lat - decl)));
         return this.sunAngleTime(angle, time, false);
     }
-    
-    
+
+
     /**
      * compute the time at which sun reaches a specific angle below horizon
      *
@@ -396,7 +345,7 @@ public class PrayTimes implements Serializable {
         double t = 1.0 / 15.0 * DMath.arccos((-DMath.sin(angle) - DMath.sin(decl) * DMath.sin(lat)) / (DMath.cos(decl) * DMath.cos(lat)));
         return noon + (ccw ? -t : t);
     }
-    
+
     /**
      * compute mid-day time
      *
@@ -407,7 +356,7 @@ public class PrayTimes implements Serializable {
         double eqt = this.equationOfTime(jdate + time);
         return DMath.fixHour(12 - eqt);
     }
-    
+
     /**
      * compute equation of time
      * Ref: http://aa.usno.navy.mil/faq/docs/SunApprox.php
@@ -424,7 +373,7 @@ public class PrayTimes implements Serializable {
         double ra = DMath.arctan2(DMath.cos(e) * DMath.sin(l), DMath.cos(l)) / 15;
         return q / 15.0 - DMath.fixHour(ra);
     }
-    
+
     /**
      * compute  declination angle of sun
      * Ref: http://aa.usno.navy.mil/faq/docs/SunApprox.php
@@ -440,8 +389,8 @@ public class PrayTimes implements Serializable {
         double e = 23.439 - 0.00000036 * d;
         return DMath.arcsin(DMath.sin(e) * DMath.sin(l));
     }
-    
-    
+
+
     /**
      * compute sun angle for sunset/sunrise
      *
@@ -453,8 +402,8 @@ public class PrayTimes implements Serializable {
         double angle = 0.0347 * Math.sqrt(elv); // an approximation
         return 0.833 + angle;
     }
-    
-    
+
+
     /**
      * Sets the calculation method
      * Attention: overrides all other parameters, set this as first
@@ -463,107 +412,199 @@ public class PrayTimes implements Serializable {
      * @param method calculation method
      */
     public void setMethod(Method method) {
-        fajr = method.fajr;
-        isha = method.isha;
-        maghrib = method.maghrib;
-        maghribMin = method.maghribMin;
-        ishaMin = method.ishaMin;
-        midnight = method.midnight;
+        Arrays.fill(angles, 0);
+        Arrays.fill(minutes, 0);
+        highLats = HighLatsAdjustment.None;
+        midnight = Midnight.Standard;
+        method.set(this);
         clearTimes();
     }
-    
-    
+
     /**
-     * Sets Imsak time in Degrees/Mins before Fajr
+     * tunes Imsak value
+     * if angle is 0, sunrise + minute is used, given angle + minute otherwhise
      *
-     * @param value degrees/mins
-     * @param isMin true if value is in mins, false if it is in degreess
+     * @param angle  angle
+     * @param minute minute
      */
-    public void setImsakTime(double value, boolean isMin) {
-        imsak = value;
-        imsakMin = isMin;
+    public void tuneImsak(double angle, int minute) {
+        angles[Times.Imsak.ordinal()] = angle;
+        minutes[Times.Imsak.ordinal()] = minute;
         clearTimes();
     }
-    
+
+
     /**
-     * Sets Fajr time degrees
+     * tunes Fajr value
+     * if angle is 0, sunrise + minute is used, given angle + minute otherwhise
      *
-     * @param degrees degrees
+     * @param angle  angle
+     * @param minute minute
      */
-    public void setFajrDegrees(double degrees) {
-        fajr = degrees;
+    public void tuneFajr(double angle, int minute) {
+        angles[Times.Fajr.ordinal()] = angle;
+        minutes[Times.Fajr.ordinal()] = minute;
         clearTimes();
     }
-    
-    
+
     /**
-     * Sets Dhuhr time in mins after zawal/solar noon
+     * tunes Sunrise value
+     * sunrise has a fix calculation, we can only shift minutes
      *
-     * @param mins minutes
+     * @param minute minute
      */
-    public void setDhuhrMins(double mins) {
-        dhuhr = mins;
+    public void tuneSunrise(int minute) {
+        minutes[Times.Sunrise.ordinal()] = minute;
+        angles[Times.Sunrise.ordinal()] = 0;
         clearTimes();
     }
-    
+
     /**
-     * Sets Maghrib time in Degrees/Mins after Sunset
+     * tunes Dhuhr value
+     * dhuhr has a fix calculation (see Zawal), we can only shift minutes
      *
-     * @param value degrees/mins
-     * @param isMin true if value is in mins, false if it is in degreess
+     * @param minute minute
      */
-    public void setMaghribTime(double value, boolean isMin) {
-        maghrib = value;
-        maghribMin = isMin;
+    public void tuneDhuhr(int minute) {
+        minutes[Times.Dhuhr.ordinal()] = minute;
+        angles[Times.Dhuhr.ordinal()] = 0;
         clearTimes();
     }
-    
-    
+
+
     /**
-     * Sets Isha time in Degrees or Mins after Sunset
+     * tunes Asr value
+     * Asr has a fix calculation, we can only shift minutes
      *
-     * @param value degrees/mins
-     * @param isMin true if value is in mins, false if it is in degreess
+     * @param minute minute
      */
-    public void setIshaTime(double value, boolean isMin) {
-        isha = value;
-        ishaMin = isMin;
+    public void tuneAsrShafi(int minute) {
+        minutes[Times.AsrShafi.ordinal()] = minute;
+        angles[Times.AsrShafi.ordinal()] = 0;
         clearTimes();
     }
-    
+
     /**
-     * In locations at higher latitude, twilight may persist throughout the night during some months of the year.
-     * In these abnormal periods, the determination of Fajr and Isha is not possible using the usual formulas mentioned
-     * in the previous section. To overcome this problem, several solutions have been proposed,
-     * three of which are described below.
-     * <p>
-     * {@link PrayTimes#HIGHLAT_NONE HIGHLAT_NONE} (Default, see notes)
-     * {@link PrayTimes#HIGHLAT_NIGHTMIDDLE HIGHLAT_NIGHTMIDDLE}
-     * {@link PrayTimes#HIGHLAT_ONESEVENTH HIGHLAT_ONESEVENTH}
-     * {@link PrayTimes#HIGHLAT_ANGLEBASED HIGHLAT_ANGLEBASED}
+     * tunes Asr value
+     * Asr has a fix calculation, we can only shift minutes
      *
-     * @param method method
+     * @param minute minute
      */
-    public void setHighLatsAdjustment(int method) {
-        highLats = method;
+    public void tuneAsrHanafi(int minute) {
+        minutes[Times.AsrHanafi.ordinal()] = minute;
+        angles[Times.AsrHanafi.ordinal()] = 0;
         clearTimes();
     }
-    
+
+    /**
+     * tunes sunset value
+     * sunset has a fix calculation, we can only shift minutes
+     *
+     * @param minute minute
+     */
+    public void tuneSunset(int minute) {
+        minutes[Times.Sunset.ordinal()] = minute;
+        angles[Times.Sunset.ordinal()] = 0;
+        clearTimes();
+    }
+
+
+    /**
+     * tunes Maghrib value
+     * if angle is 0, sunset + minute is used, given angle + minute otherwhise
+     *
+     * @param angle  angle
+     * @param minute minute
+     */
+    public void tuneMaghrib(double angle, int minute) {
+        angles[Times.Maghrib.ordinal()] = angle;
+        minutes[Times.Maghrib.ordinal()] = minute;
+        clearTimes();
+    }
+
+
+    /**
+     * tunes Ishaa value
+     * if angle is 0, sunset + minute is used, given angle + minute otherwhise
+     *
+     * @param angle  angle
+     * @param minute minute
+     */
+    public void tuneIshaa(double angle, int minute) {
+        angles[Times.Ishaa.ordinal()] = angle;
+        minutes[Times.Ishaa.ordinal()] = minute;
+        clearTimes();
+    }
+
+
+    public double getImsakAngle() {
+        return angles[Times.Imsak.ordinal()];
+    }
+
+
+    public double getFajrAngle() {
+        return angles[Times.Fajr.ordinal()];
+    }
+
+
+    public double getMaghribAngle() {
+        return angles[Times.Maghrib.ordinal()];
+    }
+
+    public double getIshaaAngle() {
+        return angles[Times.Ishaa.ordinal()];
+    }
+
+
+    public int getImsakMinuteAdjust() {
+        return minutes[Times.Imsak.ordinal()];
+    }
+
+    public int getFajrMinuteAdjust() {
+        return minutes[Times.Fajr.ordinal()];
+    }
+
+    public int getSunriseMinuteAdjust() {
+        return minutes[Times.Sunrise.ordinal()];
+    }
+
+    public int getDhuhrMinuteAdjust() {
+        return minutes[Times.Dhuhr.ordinal()];
+    }
+
+    public int getAsrHanafiMinuteAdjust() {
+        return minutes[Times.AsrHanafi.ordinal()];
+    }
+
+    public int getAsrShafiMinuteAdjust() {
+        return minutes[Times.AsrShafi.ordinal()];
+    }
+
+    public int getMaghribMinuteAdjust() {
+        return minutes[Times.Maghrib.ordinal()];
+    }
+
+    public int getIshaaMinuteAdjust() {
+        return minutes[Times.Ishaa.ordinal()];
+    }
+
+
     /**
      * Midnight is generally calculated as the mean time from Sunset to Sunrise, i.e., Midnight = 1/2(Sunrise - Sunset).
      * In Shia point of view, the juridical midnight (the ending time for performing Isha prayer) is the mean time
      * from Sunset to Fajr, i.e., Midnight = 1/2(Fajr - Sunset).
      * <p>
-     * {@link PrayTimes#MIDNIGHT_STANDARD MIDNIGHT_STANDARD} (Default)
-     * {@link PrayTimes#MIDNIGHT_JAFARI MIDNIGHT_JAFARI}
+     * {@link Midnight#Standard Standard} (Default)
+     * {@link Midnight#Jafari Jafari}
      *
      * @param mode mode
      */
-    public void setMidnightMode(int mode) {
+    public void setMidnightMode(Midnight mode) {
         midnight = mode;
         clearTimes();
+
     }
-    
+
     /**
      * TimeZone for times
      * <p>
@@ -575,34 +616,7 @@ public class PrayTimes implements Serializable {
         timeZone = tz;
         clearTimes();
     }
-    
-    /**
-     * There are two main opinions on how to calculate Asr time.
-     * <p>
-     * {@link PrayTimes#JURISTIC_STANDARD JURISTIC_STANDARD}
-     * {@link PrayTimes#JURISTIC_HANAFI JURISTIC_HANAFI}
-     * <p>
-     * Default: {@link PrayTimes#JURISTIC_STANDARD JURISTIC_STANDARD}
-     *
-     * @param asr method
-     */
-    public void setAsrJuristic(int asr) {
-        asrJuristic = asr;
-        clearTimes();
-    }
-    
-    
-    /**
-     * tuneTimes single time
-     *
-     * @param time time
-     * @param tune hours
-     */
-    public void tune(int time, double tune) {
-        this.tune[time] = tune;
-        clearTimes();
-    }
-    
+
     /**
      * get Timezone offset for specific date
      *
@@ -611,167 +625,49 @@ public class PrayTimes implements Serializable {
     private double getTimeZoneOffset() {
         return timeZone.getOffset(timestamp) / 1000.0 / 60 / 60;
     }
-    
+
     public TimeZone getTimeZone() {
         return timeZone;
     }
-    
-    public int getAsrJuristic() {
-        return asrJuristic;
-    }
-    
-    
-    public int getHighLatsAdjustment() {
+
+    public HighLatsAdjustment getHighLatsAdjustment() {
         return highLats;
     }
-    
+
+    /**
+     * In locations at higher latitude, twilight may persist throughout the night during some months of the year.
+     * In these abnormal periods, the determination of Fajr and Isha is not possible using the usual formulas mentioned
+     * in the previous section. To overcome this problem, several solutions have been proposed,
+     * three of which are described below.
+     * <p>
+     * {@link HighLatsAdjustment#None None} (Default, see notes)
+     * {@link HighLatsAdjustment#NightMiddle NightMiddle}
+     * {@link HighLatsAdjustment#OneSeventh OneSeventh}
+     * {@link HighLatsAdjustment#AngleBased AngleBased}
+     *
+     * @param method method
+     */
+    public void setHighLatsAdjustment(HighLatsAdjustment method) {
+        highLats = method;
+        clearTimes();
+
+    }
+
     public double getLatitude() {
         return lat;
     }
-    
-    
+
+
     public double getLongitude() {
         return lng;
     }
-    
-    
+
+
     public double getElevation() {
         return elv;
     }
-    
-    public double getImsakValue() {
-        return imsak;
-    }
-    
-    public boolean isImsakTimeInMins() {
-        return imsakMin;
-    }
-    
-    public double getFajrDegrees() {
-        return fajr;
-    }
-    
-    public boolean isMaghribTimeInMins() {
-        return maghribMin;
-    }
-    
-    
-    public boolean isIshaTimeInMins() {
-        return ishaMin;
-    }
-    
-    public double getDhuhrMins() {
-        return dhuhr;
-    }
-    
-    public double getMaghribValue() {
-        return maghrib;
-    }
-    
-    public double getIshaValue() {
-        return isha;
-    }
-    
-    
-    /**
-     * Asr Juristic Methods
-     * Shafii, Maliki, Jafari and Hanbali (shadow factor = 1)
-     */
-    public static final int JURISTIC_STANDARD = 1;//
-    /**
-     * Asr Juristic Methods
-     * Hanafi school of tought (shadow factor = 2)
-     */
-    public static final int JURISTIC_HANAFI = 2;
-    //===============================================
-    /**
-     * Adjust Methods for Higher Latitudes
-     * Method: no adjustment
-     */
-    public static final int HIGHLAT_NONE = 0;
-    /**
-     * Adjust Methods for Higher Latitudes
-     * Method: angle/60th of night
-     * <p>
-     * This is an intermediate solution, used by some recent prayer time calculators. Let α be the twilight angle for Isha, and let t = α/60. The period between sunset and sunrise is divided into t parts. Isha begins after the first part. For example, if the twilight angle for Isha is 15, then Isha begins at the end of the first quarter (15/60) of the night. Time for Fajr is calculated similarly.
-     */
-    public static final int HIGHLAT_ANGLEBASED = 1;
-    ;
-    /**
-     * Adjust Methods for Higher Latitudes
-     * Method: 1/7th of night
-     * <p>
-     * In this method, the period between sunset and sunrise is divided into seven parts. Isha begins after the first one-seventh part, and Fajr is at the beginning of the seventh part.
-     */
-    public static final int HIGHLAT_ONESEVENTH = 2;
-    /**
-     * Adjust Methods for Higher Latitudes
-     * Method: middle of night
-     * <p>
-     * In this method, the period from sunset to sunrise is divided into two halves. The first half is considered to be the "night" and the other half as "day break". Fajr and Isha in this method are assumed to be at mid-night during the abnormal periods.
-     */
-    public static final int HIGHLAT_NIGHTMIDDLE = 3;
-    
-    //===============================================>
-    
-    /**
-     * Midnight mode: Mid Sunset to Sunrise
-     */
-    public static final int MIDNIGHT_STANDARD = 0;
-    /**
-     * Midnight mode: Mid Sunset to Fajr
-     */
-    public static final int MIDNIGHT_JAFARI = 1;
-    
-    //===============================================>
-    /**
-     * The time to stop eating Sahur (for fasting), slightly before Fajr.
-     */
-    public static final int TIMES_IMSAK = 0;
-    /**
-     * When the sky begins to lighten (dawn).
-     */
-    public static final int TIMES_FAJR = 1;
-    /**
-     * The time at which the first part of the Sun appears above the horizon.
-     */
-    public static final int TIMES_SUNRISE = 2;
-    /**
-     * Zawal (Solar Noon): When the Sun reaches its highest point in the sky.
-     */
-    public static final int TIMES_ZAWAL = 3;
-    /**
-     * When the Sun begins to decline after reaching its highest point in the sky, slightly after solar noon
-     */
-    public static final int TIMES_DHUHR = 4;
-    /**
-     * The time when the length of any object's shadow reaches a factor (usually 1 or 2) of the length of the object itself plus the length of that object's shadow at noon.
-     */
-    public static final int TIMES_ASR = 5;
-    /**
-     * The time when the length of any object's shadow reaches a factor 1 of the length of the object itself plus the length of that object's shadow at noon.
-     */
-    public static final int TIMES_ASR_SHAFII = 6;
-    /**
-     * The time when the length of any object's shadow reaches a factor 2 of the length of the object itself plus the length of that object's shadow at noon.
-     */
-    public static final int TIMES_ASR_HANAFI = 7;
-    /**
-     * The time at which the Sun disappears below the horizon.
-     */
-    public static final int TIMES_SUNSET = 8;
-    /**
-     * Soon after sunset.
-     */
-    public static final int TIMES_MAGHRIB = 9;
-    /**
-     * The time at which darkness falls and there is no scattered light in the sky.
-     */
-    public static final int TIMES_ISHA = 10;
-    /**
-     * The mean time from sunset to sunrise (or from Maghrib to Fajr, in some schools of thought).
-     */
-    public static final int TIMES_MIDNIGHT = 11;
+
+
 }
 
 

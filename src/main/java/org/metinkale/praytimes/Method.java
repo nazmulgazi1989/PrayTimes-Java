@@ -31,45 +31,96 @@ package org.metinkale.praytimes;
 public enum Method {
     /**
      * Muslim World League
+     * Fajr: 18*, Maghrib: Sunset, Ishaa: 17*
      */
-    MWL(18, 0, true, 17, false, PrayTimes.MIDNIGHT_STANDARD),
+    MWL {
+        @Override
+        public void set(PrayTimes pt) {
+            pt.tuneImsak(18, 0);
+            pt.tuneFajr(18, 0);
+            pt.tuneIshaa(17, 0);
+        }
+    },
     /**
      * Islamic Society of North America (ISNA)
+     * Fajr: 15*, Maghrib: Sunset, Ishaa: 15*
      */
-    ISNA(15, 0, true, 15, false, PrayTimes.MIDNIGHT_STANDARD),
+    ISNA {
+        @Override
+        public void set(PrayTimes pt) {
+            pt.tuneImsak(18, 0);
+            pt.tuneFajr(18, 0);
+            pt.tuneIshaa(15, 0);
+        }
+    },
     /**
      * Egyptian General Authority of Survey
+     * Fajr: 19.5*, Maghrib: Sunset, Ishaa: 17.5*
      */
-    Egypt(19.5, 0, true, 17.5, false, PrayTimes.MIDNIGHT_STANDARD),
+    Egypt {
+        @Override
+        public void set(PrayTimes pt) {
+            pt.tuneImsak(19.5, 0);
+            pt.tuneFajr(19.5, 0);
+            pt.tuneIshaa(17.5, 0);
+        }
+    },
     /**
      * Umm Al-Qura University, Makkah
+     * Fajr: 18.5*, Maghrib: Sunset, Ishaa: 90min after sunset
      */
-    Makkah(18.5, 0, true, 90, true, PrayTimes.MIDNIGHT_STANDARD),
+    Makkah {
+        @Override
+        public void set(PrayTimes pt) {
+            pt.tuneImsak(18.5, 0);
+            pt.tuneFajr(18.5, 0);
+            pt.tuneIshaa(0, 90);
+        }
+    },
     /**
      * University of Islamic Sciences, Karachi
+     * Fajr: 18*, Maghrib: Sunset, Ishaa: 15*
      */
-    Karachi(18, 0, true, 18, false, PrayTimes.MIDNIGHT_STANDARD),
+    Karachi {
+        @Override
+        public void set(PrayTimes pt) {
+            pt.tuneImsak(18, 0);
+            pt.tuneFajr(18, 0);
+            pt.tuneIshaa(15, 0);
+        }
+    },
     /**
+     * /**
      * Institute of Geophysics, University of Tehran
+     * Fajr: 17.7*, Maghrib: 4.5*, Ishaa: 14*
      */
-    Tehran(17.7, 4.5, false, 14, false, PrayTimes.MIDNIGHT_JAFARI),
+    Tehran {
+        @Override
+        public void set(PrayTimes pt) {
+            pt.tuneImsak(17.7, 0);
+            pt.tuneFajr(17.7, 0);
+            pt.tuneMaghrib(4.5, 0);
+            pt.tuneIshaa(14, 0);
+        }
+    },
     /**
      * Shia Ithna-Ashari, Leva Institute, Qum
+     * Fajr: 16*, Maghrib: 4*, Ishaa: 14*
      */
-    Jafari(16, 4, false, 14, false, PrayTimes.MIDNIGHT_JAFARI);
+    Jafari {
+        @Override
+        public void set(PrayTimes pt) {
+            pt.tuneImsak(16, 0);
+            pt.tuneFajr(16, 0);
+            pt.tuneMaghrib(4, 0);
+            pt.tuneIshaa(14, 0);
+        }
+    };
     
     
-    final boolean maghribMin, ishaMin;//if true double values are in minutes, otherwhise in degrees
-    final double fajr, isha, maghrib;
-    final int midnight;
+    private int[] minutes = new int[Times.values().length];
+    private double[] angles = new double[Times.values().length];
     
     
-    Method(double fajr, double maghrib, boolean maghribMin, double isha, boolean ishaMin, int midnight) {
-        this.fajr = fajr;
-        this.maghrib = maghrib;
-        this.isha = isha;
-        this.maghribMin = maghribMin;
-        this.ishaMin = ishaMin;
-        this.midnight = midnight;
-    }
+    public abstract void set(PrayTimes prayTimes);
 }
